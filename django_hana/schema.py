@@ -71,3 +71,13 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
             return "1" if value else "0"
         else:
             return str(value)
+
+    def skip_default(self, field):
+        db_type = field.db_type(self.connection)
+
+        return (
+            db_type is not None and
+            db_type.upper() in {
+                'NCLOB', 'BLOB', 'CLOB'
+            }
+        )
