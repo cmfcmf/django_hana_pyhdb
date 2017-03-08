@@ -1,6 +1,12 @@
+import datetime
+
+import binascii
 from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 
 import django_hana
+
+from django.utils import six
+from django.utils.text import force_text
 
 
 class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
@@ -43,13 +49,6 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
     # sql_create_pk = 'ALTER TABLE %(table)s ADD CONSTRAINT %(name)s PRIMARY KEY (%(columns)s)'
     # sql_delete_pk = 'ALTER TABLE %(table)s DROP CONSTRAINT %(name)s'
 
-    def skip_default(self, field):
-        # When altering a column, SAP HANA requires the column definition. This is not the case for other databases.
-        # So Django does not pass the column definition to the sql format strings. Since Django does not use database
-        # default. (It creates a column with default values and drop the contraint immediately.) In order to avoid
-        # entire methods of Django to support this behavior, we will skip creating default constraints entirely.
-        return True
-
     def create_model(self, model):
         # To support creating column and row table, we have to use this workaround. It sets the sql format string
         # according to the table type of the model.
@@ -57,3 +56,18 @@ class DatabaseSchemaEditor(BaseDatabaseSchemaEditor):
         table_type = django_hana.MODEL_STORE.get(model.__name__, store_type)
         self.sql_create_table = self.sql_create_table_template % {'table_type': table_type}
         super(DatabaseSchemaEditor, self).create_model(model)
+
+    def prepare_default(self, value):
+        return self.quote_value(value)
+
+    def quote_value(self, value):
+        if isinstance(value, (datetime.date, datetime.time, datetime.datetime)):
+            return "'%s'" % value
+        elif isinstance(value, six.string_types):
+            return "'%s'" % six.text_type(value).replace("\'", "\'\'")
+        elif isinstance(value, six.buffer_types):
+            return "'%s'" % force_text(binascii.hexlify(value))
+        elif isinstance(value, bool):
+            return "1" if value else "0"
+        else:
+            return str(value)
