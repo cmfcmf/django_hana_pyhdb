@@ -223,6 +223,14 @@ class DatabaseOperations(BaseDatabaseOperations, BaseSpatialOperations):
             value = bool(value)
         return value
 
+    # Decimal to Database. Django == 1.8
+    def value_to_db_decimal(self, value, max_digits, decimal_places):
+        return value
+
+    # Decimal to Database. Django >= 1.9
+    def adapt_decimalfield_value(self, value, max_digits=None, decimal_places=None):
+        return value
+
     def modify_insert_params(self, placeholder, params):
         insert_param_groups = []
         for p in params:
